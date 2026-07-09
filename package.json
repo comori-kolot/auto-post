@@ -1,0 +1,13 @@
+{
+  "name": "greeen-biz-ai-automation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "greeen-biz.com向けSEO記事の自動生成・自動投稿パイプライン",
+  "scripts": {
+    "publish": "node scripts/run.mjs"
+  },
+  "dependencies": {
+    "openai": "^5.0.0"
+  }
+}
