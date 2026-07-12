@@ -4,6 +4,7 @@ import { readKeywords, writeKeywords } from "./csv.mjs";
 import { generateArticle } from "./generate-article.mjs";
 import { generateEyecatchImage } from "./generate-image.mjs";
 import { publishToWordPress } from "./publish-to-wp.mjs";
+import { CATEGORY_NAME } from "./config.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const KEYWORDS_PATH = path.join(__dirname, "..", "data", "keywords.csv");
@@ -47,6 +48,7 @@ async function main() {
     metaDescription: article.metaDescription,
     slug: article.slug,
     imageBuffer,
+    categoryName: CATEGORY_NAME,
   });
   console.log(`[run] WordPress投稿完了: ${post.link}`);
 
