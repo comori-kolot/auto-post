@@ -2,7 +2,7 @@ name: Publish Article
 
 on:
   schedule:
-    - cron: "0 0 * * 1" # 毎週月曜 09:00 JST
+    - cron: "0 0 * * 1,3" # 毎週月曜・水曜 09:00 JST
   workflow_dispatch: {}
 
 permissions:
