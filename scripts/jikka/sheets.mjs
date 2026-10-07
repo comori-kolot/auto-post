@@ -126,3 +126,18 @@ export async function readAffiliates() {
     }))
     .filter((a) => a.url && a.enabled && /^https?:\/\//.test(a.url));
 }
+
+// 失敗の理由を、シートのO列（実行エラー）に書く。成功したら空にする
+export async function writeNote(rowNumber, text) {
+  const sheets = api();
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: SHEET_ID,
+    requestBody: {
+      valueInputOption: "RAW",
+      data: [
+        { range: `'${KW_TAB}'!O2`, values: [["実行エラー（自動記録）"]] },
+        { range: `'${KW_TAB}'!O${rowNumber}`, values: [[String(text).slice(0, 450)]] },
+      ],
+    },
+  });
+}

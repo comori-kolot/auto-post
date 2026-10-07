@@ -5,11 +5,11 @@
 //              --update 投稿ID  既存の下書きを作り直した内容で更新（画像は作り直さない）
 import fs from "node:fs/promises";
 import path from "node:path";
-import { pickNextRow, markRow, readAffiliates } from "./sheets.mjs";
+import { pickNextRow, markRow, readAffiliates, writeNote } from "./sheets.mjs";
 import { researchKeyword, verifySources } from "./research.mjs";
 import { buildOutline } from "./outline.mjs";
 import { writeArticle } from "./write.mjs";
-import { buildCtas, applyTemplateHeadline } from "./cta.mjs";
+import { buildCtas } from "./cta.mjs";
 import { assemble, sanitizeLinks, lint } from "./assemble.mjs";
 import { generateEyecatch } from "./image.mjs";
 import { uploadImage, createPost } from "./publish.mjs";
@@ -30,7 +30,12 @@ function need(name) {
 }
 
 const todayJst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, "/");
-const log = (m) => console.log(`[jikka] ${m}`);
+let stage = "開始";
+const log = (m) => {
+  if (m.startsWith("1/6") || m.startsWith("2/6") || m.startsWith("3/6") || m.startsWith("4/6") || m.startsWith("5/6") || m.startsWith("6/6")) stage = m;
+  console.log(`[jikka] ${m}`);
+};
+const errText = (e) => [e.message, e.status && `status=${e.status}`, e.code && `code=${e.code}`, e.error && e.error.message].filter(Boolean).join(" | ");
 
 async function main() {
   const apiKey = need("OPENAI_API_KEY");
@@ -50,29 +55,42 @@ async function main() {
   await fs.mkdir(outDir, { recursive: true });
   const save = (name, data) => fs.writeFile(path.join(outDir, name), typeof data === "string" ? data : JSON.stringify(data, null, 2));
 
-  if (!dry) await markRow(row.rowNumber, "執筆中", "");
+  // 更新モード（--update）のときは、すでに公開済みの行の状態・完了日を変えない
+  if (!dry && !opt("update")) await markRow(row.rowNumber, "執筆中", "");
 
   try {
     const readJson = async (n) => JSON.parse(await fs.readFile(path.join(outDir, n), "utf8"));
     let sources, outline, body, ctas, internal = [];
-    if (flag("reuse") || flag("redo-cta")) {
+    if (flag("reuse") || flag("redo-cta") || flag("cta-only")) {
       log("--reuse: 保存済みのリサーチ・本文・CVコピーを使い、HTMLだけ組み直します（AI生成なし）");
       ({ sources } = await readJson("research.json"));
       outline = await readJson("outline.json");
       body = await readJson("body.json");
       ctas = await readJson("ctas.json");
       internal = await readJson("internal.json").catch(() => []);
-      if (flag("redo-cta")) {
-        log("--redo-cta: 本文はそのまま、見出しの校正とCVコピーだけやり直します");
-        body = await polishBody({ body, apiKey, log });
-        await save("body.json", body);
+      if (flag("redo-cta") || flag("cta-only")) {
+        log("--redo-cta / --cta-only: 本文はそのまま、CVコピーだけやり直します");
+        if (flag("redo-cta")) {
+          body = await polishBody({ body, apiKey, log });
+          await save("body.json", body);
+        }
         const affiliates = await readAffiliates();
         ctas = await buildCtas({ keyword: row.keyword, outline, body, affiliates, apiKey, log });
         await save("ctas.json", ctas);
       }
     } else {
       log("1/6 競合・共起語・参照元をリサーチ（Web検索）");
-      const { data: research } = await researchKeyword({ keyword: row.keyword, group: row.group, apiKey });
+      let research;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          ({ data: research } = await researchKeyword({ keyword: row.keyword, group: row.group, apiKey }));
+          break;
+        } catch (e) {
+          log(`  リサーチに失敗（${attempt}/3回目）: ${errText(e)}`);
+          if (attempt === 3) throw e;
+          await new Promise((r) => setTimeout(r, 15000));
+        }
+      }
       sources = await verifySources(research.authoritativeSources);
       log(`  競合${research.competitors.length}件 / 参照元 ${sources.length}/${research.authoritativeSources.length}件が実在確認OK`);
       await save("research.json", { research, sources });
@@ -103,7 +121,6 @@ async function main() {
       await save("ctas.json", ctas);
     }
 
-    applyTemplateHeadline(ctas, row.keyword);
     log("5/6 記事を組み立て・リンクを検証");
     const html0 = assemble({ body, ctas });
     const allowed = [...sources.map((s) => s.url), ...internal.map((p) => p.url), ...(ctas.affiliate ? [ctas.affiliate.url] : [])];
@@ -116,7 +133,7 @@ async function main() {
 
     let mediaId;
     const updateId = opt("update");
-    if ((!dry || flag("image")) && !updateId && !flag("reuse") && !flag("redo-cta")) {
+    if ((!dry || flag("image")) && !updateId && !flag("reuse") && !flag("redo-cta") && !flag("cta-only")) {
       log("6/6 アイキャッチ画像を作成");
       const img = await generateEyecatch({ title: outline.title, keyword: row.keyword, apiKey });
       await fs.writeFile(path.join(outDir, "eyecatch.png"), img);
@@ -139,10 +156,16 @@ async function main() {
       postId: updateId,
     });
     log(`WordPressに${status === "publish" ? "公開" : "下書き保存"}しました: ${post.link}`);
-    await markRow(row.rowNumber, status === "publish" ? "公開済" : "下書き確認待ち", todayJst());
+    if (!opt("update")) await markRow(row.rowNumber, status === "publish" ? "公開済" : "下書き確認待ち", todayJst());
     log("シートのステータスを更新しました");
   } catch (e) {
-    if (!dry) await markRow(row.rowNumber, "未着手", "").catch(() => {});
+    console.error(`[jikka] 失敗した工程: ${stage}
+${e.stack || e.message}`);
+    if (!dry) {
+      const jst = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 16).replace("T", " ");
+      await writeNote(row.rowNumber, `${jst} [${stage}] ${errText(e)}`).catch(() => {});
+    }
+    if (!dry && !opt("update")) await markRow(row.rowNumber, "未着手", "").catch(() => {});
     throw e;
   }
 }
