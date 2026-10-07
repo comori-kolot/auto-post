@@ -70,7 +70,8 @@ async function ask(client, schema, system, user) {
   };
   let r;
   try {
-    r = await client.chat.completions.create({ ...req, reasoning_effort: "high" });
+    // 費用を抑えるため推論は軽くする（CTAの文面は運営者の型をそのまま使うので、重い推論は不要）
+    r = await client.chat.completions.create({ ...req, reasoning_effort: "low" });
   } catch (e) {
     if (!/reasoning_effort|unsupported|unknown/i.test(String(e.message))) throw e;
     r = await client.chat.completions.create(req);
