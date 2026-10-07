@@ -4,6 +4,10 @@ import { SHEET_ID, KW_TAB, AFFILIATE_TAB } from "./config.mjs";
 // ローカルでは GOOGLE_SA_KEY_FILE（鍵ファイルのパス）、クラウドでは GOOGLE_SA_KEY_JSON（鍵の中身）を使う
 function getAuth() {
   const scopes = ["https://www.googleapis.com/auth/spreadsheets"];
+  // GitHubのSecretsに鍵のJSONを直接貼れないとき用：JSONをbase64にしたもの
+  if (process.env.GOOGLE_SA_KEY_B64) {
+    return new google.auth.GoogleAuth({ credentials: JSON.parse(Buffer.from(process.env.GOOGLE_SA_KEY_B64, "base64").toString("utf8")), scopes });
+  }
   if (process.env.GOOGLE_SA_KEY_JSON) {
     return new google.auth.GoogleAuth({ credentials: JSON.parse(process.env.GOOGLE_SA_KEY_JSON), scopes });
   }

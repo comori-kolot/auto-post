@@ -42,6 +42,7 @@ jobs:
           WP_USERNAME: ${{ secrets.WP_USERNAME }}
           WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
           GOOGLE_SA_KEY_JSON: ${{ secrets.GOOGLE_SA_KEY_JSON }}
+          GOOGLE_SA_KEY_B64: ${{ secrets.GOOGLE_SA_KEY_B64 }}
           COUNT: ${{ github.event.inputs.count || '1' }}
           STATUS: ${{ github.event.inputs.status || vars.POST_STATUS || 'publish' }}
         run: |
