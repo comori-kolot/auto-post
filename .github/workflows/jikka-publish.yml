@@ -1,0 +1,51 @@
+name: Jikka Publish
+
+# 実家じまいメディアの記事を、KW戦略シートの順に1本ずつ作成して投稿する。
+# 投稿状態は GitHub の Variables「POST_STATUS」で切り替える（draft=下書き / publish=公開。未設定なら publish）。
+on:
+  schedule:
+    - cron: "0 0 * * 1,3" # 毎週月曜・水曜 09:00 JST
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "作成する本数（手動実行のとき）"
+        default: "1"
+      status:
+        description: "投稿状態 draft / publish（空欄なら POST_STATUS の設定に従う）"
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jikka-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Create articles
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          WP_URL: ${{ secrets.WP_URL }}
+          WP_USERNAME: ${{ secrets.WP_USERNAME }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+          GOOGLE_SA_KEY_JSON: ${{ secrets.GOOGLE_SA_KEY_JSON }}
+          COUNT: ${{ github.event.inputs.count || '1' }}
+          STATUS: ${{ github.event.inputs.status || vars.POST_STATUS || 'publish' }}
+        run: |
+          for i in $(seq 1 "$COUNT"); do
+            echo "=== $i / $COUNT (status=$STATUS) ==="
+            node scripts/jikka/run.mjs --status "$STATUS"
+          done
