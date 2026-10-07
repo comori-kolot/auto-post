@@ -6,7 +6,7 @@ import { researchLanding, actionsFromReward } from "./landing.mjs";
 const C = { green: "#1f4d36", btn: "#c2571a", btnShadow: "#8f3f12" };
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export function ctaHtml({ headline, sub, bullets = [], button, micro, url, sponsored }) {
+export function ctaHtml({ headline, sub, bullets = [], button, buttonNote = "", micro, url, sponsored }) {
   const rel = sponsored ? "nofollow sponsored noopener" : "noopener";
   const target = sponsored ? ' target="_blank"' : "";
   const list = bullets.length
@@ -20,7 +20,7 @@ export function ctaHtml({ headline, sub, bullets = [], button, micro, url, spons
     `<p style="margin:0 0 8px;font-size:1.2em;font-weight:700;line-height:1.6;color:#1a1a1a;">${esc(headline)}</p>` +
     (sub ? `<p style="margin:0 0 14px;line-height:1.8;">${esc(sub)}</p>` : "") +
     list +
-    `<p style="margin:0;text-align:center;"><a href="${esc(url)}"${target} rel="${rel}" style="display:block;max-width:440px;margin:0 auto;background:${C.btn};color:#fff;padding:16px 20px;border-radius:4px;font-weight:700;font-size:1.05em;text-decoration:none;box-shadow:0 3px 0 ${C.btnShadow};">${esc(button)}　＞</a></p>` +
+    `<p style="margin:0;text-align:center;"><a href="${esc(url)}"${target} rel="${rel}" style="display:block;max-width:440px;margin:0 auto;background:${C.btn};color:#fff;padding:16px 20px;border-radius:4px;font-weight:700;font-size:1.05em;text-decoration:none;box-shadow:0 3px 0 ${C.btnShadow};">${esc(button)}${buttonNote ? `<span style="font-size:0.8em;font-weight:400;"> ${esc(buttonNote)}</span>` : ""}　＞</a></p>` +
     microHtml +
     `</div>`
   );
@@ -239,6 +239,36 @@ ${killer || "なし"}
   );
 }
 
+// シートの「CTA案」を分解する。1行目=見出し、✔で始まる行=利点、「CTAリンク：」の行=ボタン文言（末尾の（）はボタン内の補足）
+export function parseTemplate(killer) {
+  const lines = String(killer || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return null;
+  const headline = lines[0];
+  const bullets = lines.filter((l) => /^[✔✓☑]/.test(l)).map((l) => l.replace(/^[✔✓☑]\s*/, ""));
+  const btnLine = lines.find((l) => /^CTAリンク[：:]/.test(l));
+  if (!btnLine) return null;
+  const label = btnLine.replace(/^CTAリンク[：:]\s*/, "");
+  const m = label.match(/^(.*?)\s*([（(].*[）)])\s*$/);
+  return { headline, bullets, button: m ? m[1] : label, buttonNote: m ? m[2] : "" };
+}
+
+// $記事テーマ$ に入れる、短く自然なテーマ名（例：実家じまい／山林の相続／空き家の売却）
+async function deriveTheme(client, { keyword, outline }) {
+  try {
+    const r = await client.chat.completions.create({
+      model: MODELS.article,
+      messages: [
+        { role: "system", content: "記事のテーマを、「【◯◯で相続手続きにお困りの方】」の◯◯に入る短い名詞句（12文字以内）にします。キーワードが短く自然ならそのまま使う。出力はその語句だけ。" },
+        { role: "user", content: `キーワード: ${keyword}\nタイトル: ${outline.title}` },
+      ],
+    });
+    const t = (r.choices[0].message.content || "").trim().replace(/[「」『』【】\s]/g, "");
+    return t && t.length <= 14 ? t : keyword;
+  } catch {
+    return keyword;
+  }
+}
+
 export async function buildCtas({ keyword, outline, body, affiliates, apiKey, log = () => {} }) {
   if (!affiliates.length) return fallbackCtas();
   const client = new OpenAI({ apiKey });
@@ -275,6 +305,24 @@ ${Object.entries(SLOT_ROLE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}`,
   }
   const aff = affiliates[strategy.affiliateIndex - 1];
   log(`  採用案件: ${aff.name}`);
+
+  // 運営者のCTA案があれば、AIで言い換えず、そのまま使う（3か所とも同じ）
+  const tpl = parseTemplate(aff.killer);
+  if (tpl) {
+    const theme = tpl.headline.includes("$記事テーマ$") ? await deriveTheme(client, { keyword, outline }) : "";
+    const one = () => ({
+      headline: tpl.headline.split("$記事テーマ$").join(theme),
+      sub: "",
+      bullets: [...tpl.bullets],
+      button: tpl.button,
+      buttonNote: tpl.buttonNote,
+      micro: "",
+      url: aff.url,
+      sponsored: true,
+    });
+    log(`  運営者のCTA案をそのまま使用 → ${one().headline}`);
+    return { affiliate: aff, slots: { intro: one(), mid: one(), end: one() }, template: true, theme, strategy };
+  }
   log(`  読者が得る結果: ${strategy.mainBenefit}`);
 
   // 2) 遷移先（広告主の公式ページ）を調べる
