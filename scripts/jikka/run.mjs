@@ -9,7 +9,7 @@ import { pickNextRow, markRow, readAffiliates, writeNote } from "./sheets.mjs";
 import { researchKeyword, verifySources } from "./research.mjs";
 import { buildOutline } from "./outline.mjs";
 import { writeArticle } from "./write.mjs";
-import { buildCtas } from "./cta.mjs";
+import { buildCtas, rebuildTemplateCtas } from "./cta.mjs";
 import { assemble, sanitizeLinks, lint } from "./assemble.mjs";
 import { generateEyecatch } from "./image.mjs";
 import { uploadImage, createPost } from "./publish.mjs";
@@ -75,7 +75,14 @@ async function main() {
           await save("body.json", body);
         }
         const affiliates = await readAffiliates();
-        ctas = await buildCtas({ keyword: row.keyword, outline, body, affiliates, apiKey, log });
+        // 運営者の型を使った保存済みCTAは、AIを使わず（費用ゼロで）組み直す
+        const rebuilt = flag("cta-only") ? rebuildTemplateCtas(ctas, row.keyword, affiliates) : null;
+        if (rebuilt) {
+          ctas = rebuilt;
+          log(`  運営者のCTA案をAIなしで組み直しました → ${ctas.slots.intro.headline}`);
+        } else {
+          ctas = await buildCtas({ keyword: row.keyword, outline, body, affiliates, apiKey, log });
+        }
         await save("ctas.json", ctas);
       }
     } else {
