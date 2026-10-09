@@ -4,7 +4,7 @@ name: Jikka Publish
 # 投稿状態は GitHub の Variables「POST_STATUS」で切り替える（draft=下書き / publish=公開。未設定なら publish）。
 on:
   schedule:
-    - cron: "0 0 * * 1,3" # 毎週月曜・水曜 09:00 JST
+    - cron: "0 0 * * *" # 毎日 09:00 JST
   workflow_dispatch:
     inputs:
       count:
