@@ -62,7 +62,7 @@ export function factViolation(text, sourceText, headline = "") {
 
 const strip = (h) => h.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 
-async function ask(client, schema, system, user) {
+async function ask(client, schema, system, user, effort = "low") {
   const req = {
     model: MODELS.article,
     messages: [{ role: "system", content: system }, { role: "user", content: user }],
@@ -71,7 +71,7 @@ async function ask(client, schema, system, user) {
   let r;
   try {
     // 費用を抑えるため推論は軽くする（CTAの文面は運営者の型をそのまま使うので、重い推論は不要）
-    r = await client.chat.completions.create({ ...req, reasoning_effort: "low" });
+    r = await client.chat.completions.create({ ...req, reasoning_effort: effort });
   } catch (e) {
     if (!/reasoning_effort|unsupported|unknown/i.test(String(e.message))) throw e;
     r = await client.chat.completions.create(req);
@@ -312,11 +312,14 @@ export async function buildCtas({ keyword, outline, body, affiliates, apiKey, lo
     CHOICE_SCHEMA,
     `あなたはアフィリエイトの戦略担当です。記事の読者に本当に合う案件を1つ選び、記事内の3か所（intro/mid/end）で何をどう訴えるかを決めます。
 - 「運営者メモ」の条件（対象エリア・物件の条件・利用できない状況）に当てはまらない記事では、その案件を選ばない。合う案件が無ければ0
+- エリア・物件・読者の条件が限定された案件（案件名や公式情報に「東京23区限定」「首都圏限定」「都市部のみ」などがある、または運営者メモに「限定」「要注意」「ダメ」がある案件）は、記事がその条件（地域・物件の種類・状況）を明確に対象にしているときだけ選ぶ。全国の読者向けの一般的な記事では選ばない。迷ったら、全国対応で対象が広い案件を選ぶ
+- 相続手続き全般・実家じまい全般の記事は、全国対応の相続手続きサービスが基本の選択肢
 - 読者との適合が同程度なら、成果報酬が高い案件を優先する
 - まず mainBenefit（読者が得る結果）を決める。「相談できる」「確認できる」は結果ではない。「まとめて任せられる」「手間が減る」「迷わず進められる」のような、読者の生活がどうラクになるか
 - 3か所の切り口は被らせない。ただし3つとも mainBenefit を土台にする
 ${Object.entries(SLOT_ROLE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}`,
-    `${articleCtx}\n\n【案件一覧】\n${affList}`
+    `${articleCtx}\n\n【案件一覧】\n${affList}`,
+    "medium"
   );
   if (strategy.affiliateIndex < 1) {
     log(`  案件なし（${strategy.why}）`);

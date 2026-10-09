@@ -76,7 +76,7 @@ async function main() {
         }
         const affiliates = await readAffiliates();
         // 運営者の型を使った保存済みCTAは、AIを使わず（費用ゼロで）組み直す
-        const rebuilt = flag("cta-only") ? rebuildTemplateCtas(ctas, row.keyword, affiliates) : null;
+        const rebuilt = flag("cta-only") && !flag("reselect") ? rebuildTemplateCtas(ctas, row.keyword, affiliates) : null;
         if (rebuilt) {
           ctas = rebuilt;
           log(`  運営者のCTA案をAIなしで組み直しました → ${ctas.slots.intro.headline}`);
