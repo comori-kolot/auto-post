@@ -5,7 +5,7 @@
 //              --update 投稿ID  既存の下書きを作り直した内容で更新（画像は作り直さない）
 import fs from "node:fs/promises";
 import path from "node:path";
-import { pickNextRow, markRow, readAffiliates, writeNote } from "./sheets.mjs";
+import { pickNextRow, markRow, readAffiliates, writeNote, readFieldNotes } from "./sheets.mjs";
 import { researchKeyword, verifySources } from "./research.mjs";
 import { buildOutline } from "./outline.mjs";
 import { writeArticle } from "./write.mjs";
@@ -113,7 +113,9 @@ async function main() {
       await save("internal.json", internal);
 
       log("3/6 本文を作成");
-      body = await writeArticle({ keyword: row.keyword, outline, sources, internal, apiKey });
+      const fieldNotes = await readFieldNotes().catch(() => []);
+      log(`  運営者の現場メモ: ${fieldNotes.length}件（公開OKのもの）`);
+      body = await writeArticle({ keyword: row.keyword, outline, sources, internal, fieldNotes, apiKey });
       log("  AIっぽい表現・造語・比喩を校正");
       body = await polishBody({ body, apiKey, log });
       const left = findBanned(body);

@@ -1,0 +1,91 @@
+:root {
+  --gb-ink: #1a1a1a;
+  --gb-soft: #5a5a56;
+  --gb-line: #d9d7d0;
+  --gb-green: #1f4d36;
+  --gb-green-dark: #143626;
+  --gb-brown: #8b5a2b;
+  --gb-sans: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --gb-serif: "Noto Serif JP", "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+}
+
+html body {
+  font-family: var(--gb-sans);
+  color: var(--gb-ink);
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: antialiased;
+}
+
+html a:focus-visible,
+html button:focus-visible,
+html summary:focus-visible {
+  outline: 3px solid #1a1a1a;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px #ffd43d;
+}
+
+html .l-header__bar {
+  background: var(--gb-green);
+  color: #fff;
+  font-size: 0.8125rem;
+}
+
+html .l-header__bar,
+html .l-header__bar a,
+html .l-header__barInner * {
+  color: #fff;
+}
+
+html .l-header,
+html .l-fixHeader {
+  background: #fff;
+  box-shadow: none;
+  border-bottom: 1px solid var(--gb-line);
+}
+
+html .c-gnav > .menu-item > a {
+  color: var(--gb-ink);
+  font-weight: 400;
+  font-size: 0.9375rem;
+  letter-spacing: 0.04em;
+}
+
+html .c-gnav > .menu-item > a:hover,
+html .c-gnav > .menu-item.current-menu-item > a {
+  color: var(--gb-green);
+}
+
+html .c-gnav > .menu-item > a::after {
+  background: var(--gb-green);
+}
+
+html .l-footer {
+  background: var(--gb-green-dark);
+  color: rgba(255, 255, 255, 0.86);
+}
+
+html .l-footer__foot {
+  background: transparent;
+}
+
+html .l-footer a,
+html .l-footer__nav a {
+  color: #fff;
+}
+
+html .l-footer .copyright {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.8125rem;
+}
+
+html .c-fixBtn {
+  background: var(--gb-ink);
+  color: #fff;
+  border-radius: 0;
+}
+
+@media (min-width: 960px) {
+  html .l-header__spNav {
+    display: none;
+  }
+}

@@ -41,7 +41,29 @@ const BOX = {
   point: { label: "POINT", color: "#1f4d36", bg: "#f6faf7" },
   caution: { label: "注意！", color: "#8b5a2b", bg: "#fdf7ef" },
   check: { label: "CHECK", color: "#1f4d36", bg: "#f6faf7" },
+  field: { label: "相談現場から", color: "#8b5a2b", bg: "#fdf7ef" },
 };
+
+const todayJa = () => {
+  const d = new Date(Date.now() + 9 * 3600 * 1000);
+  return `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月${d.getUTCDate()}日`;
+};
+
+// 最終確認日（制度・金額・手続きは、この日に確認した内容であることを示す）
+export function confirmDateHtml(dateJa = todayJa()) {
+  return `<p style="font-size:0.85em;color:#5a5a56;margin:0 0 18px;">最終確認日：${dateJa}（法令・制度・金額は、この日に確認した内容です）</p>`;
+}
+
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// よくある質問。プラグイン（greeen-design）が、この構造からFAQPageの構造化データを自動で作る
+export function faqHtml(faq) {
+  const items = (faq || []).filter((f) => f && f.q && f.a);
+  if (!items.length) return "";
+  return `<div class="gb-faq" data-gb-faq="1"><h2>よくある質問</h2>\n${items
+    .map((f) => `<div class="gb-faq-item"><h3>${esc(f.q)}</h3><p>${esc(f.a)}</p></div>`)
+    .join("\n")}</div>`;
+}
 
 function boxHtml(type, inner) {
   const b = BOX[type];
@@ -53,7 +75,7 @@ function boxHtml(type, inner) {
 
 export function decorate(html) {
   let out = html;
-  out = out.replace(/<div data-box="(point|caution|check)">([\s\S]*?)<\/div>/g, (_, t, inner) => boxHtml(t, inner));
+  out = out.replace(/<div data-box="(point|caution|check|field)">([\s\S]*?)<\/div>/g, (_, t, inner) => boxHtml(t, inner));
   out = out.replace(/<mark>/g, '<mark style="background:linear-gradient(transparent 55%,#ffe27a 55%);color:inherit;padding:0 2px;">');
   out = out.replace(/<strong>/g, '<strong style="color:#1a1a1a;">');
   out = out.replace(/<table>/g, '<div style="overflow-x:auto;margin:22px 0;"><table style="border-collapse:collapse;width:100%;font-size:0.95em;">').replace(/<\/table>/g, "</table></div>");
@@ -72,6 +94,7 @@ function summaryBox(items) {
 
 export function assemble({ body, ctas }) {
   const parts = [];
+  parts.push(confirmDateHtml());
   parts.push(body.intro);
   parts.push(ctaHtml(ctas.slots.intro));
   parts.push(summaryBox(body.summary));
@@ -79,8 +102,12 @@ export function assemble({ body, ctas }) {
     parts.push(`<h2>${s.h2}</h2>\n${s.html}`);
     if (i === 2 || (i === body.sections.length - 1 && body.sections.length < 3)) parts.push(ctaHtml(ctas.slots.mid));
   });
+  parts.push(faqHtml(body.faq));
   parts.push(body.closing);
   parts.push(ctaHtml(ctas.slots.end));
-  // 本文側の装飾のみ変換（CTA・まとめ枠はすでに装飾済み）
-  return parts.map((p) => (p.includes("gb-cta-box") || p.includes('data-gb-box="summary"') ? p : decorate(p))).join("\n\n");
+  // 本文側の装飾のみ変換（CTA・まとめ枠・FAQ・確認日はすでに装飾済み）
+  return parts
+    .filter(Boolean)
+    .map((p) => (p.includes("gb-cta-box") || p.includes('data-gb-box="summary"') || p.includes("data-gb-faq") || p.includes("最終確認日") ? p : decorate(p)))
+    .join("\n\n");
 }

@@ -29,7 +29,7 @@ export function categoryIdsFor(group, slug) {
   else if (group === "空き家") ids.push(WP_CATEGORY.akiya);
   else if (group === "相続土地・山林・農地") ids.push(WP_CATEGORY.sanrin);
   else if (group.startsWith("相続の手続き")) ids.push(WP_CATEGORY.tetsuzuki);
-  else if (group === "実家の相続・売却") ids.push(/baikyaku/.test(slug) ? WP_CATEGORY.akiya : WP_CATEGORY.tetsuzuki);
+  else if (group === "実家の相続・売却") ids.push(/baikyaku|shobun/.test(slug) ? WP_CATEGORY.akiya : WP_CATEGORY.tetsuzuki);
   return ids;
 }
 

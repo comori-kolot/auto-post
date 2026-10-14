@@ -34,6 +34,7 @@ const FIELDS = (body) => [
   ["summary", (body.summary || []).join("\n")],
   ...body.sections.map((s, i) => [`h2_${i}`, s.h2]),
   ...body.sections.map((s, i) => [`section${i}`, s.html]),
+  ["faq", (body.faq || []).map((f) => f.q + "\n" + f.a).join("\n")],
   ["closing", body.closing],
 ];
 
@@ -79,6 +80,7 @@ export async function polishBody({ body, apiKey, log = () => {} }) {
     intro: apply(body.intro),
     summary: (body.summary || []).map(apply),
     sections: body.sections.map((s) => ({ ...s, h2: apply(s.h2), html: apply(s.html) })),
+    faq: (body.faq || []).map((f) => ({ q: apply(f.q), a: apply(f.a) })),
     closing: apply(body.closing),
   };
   log(`  校正: ${edits.length}件の提案のうち${applied}か所を修正${edits.length ? "（" + edits.slice(0, 3).map((e) => `「${e.find.slice(0, 18)}」→「${e.replace.slice(0, 18)}」`).join("、") + "…）" : ""}`);

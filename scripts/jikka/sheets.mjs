@@ -141,3 +141,29 @@ export async function writeNote(rowNumber, text) {
     },
   });
 }
+
+// 「現場メモ」シート（運営者が書く、実際の相談現場の経験）。公開OK=○ の行だけ使う
+// 列: B テーマ / C 状況 / D 起きたこと / E 結果・学び / F 金額・期間 / G 公開OK
+export async function readFieldNotes() {
+  const sheets = api();
+  try {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `'現場メモ'!B4:G200`,
+      valueRenderOption: "UNFORMATTED_VALUE",
+    });
+    return (res.data.values || [])
+      .map((r) => ({
+        theme: String(r[0] ?? "").trim(),
+        situation: String(r[1] ?? "").trim(),
+        what: String(r[2] ?? "").trim(),
+        lesson: String(r[3] ?? "").trim(),
+        numbers: String(r[4] ?? "").trim(),
+        ok: /^[○〇oOyY✔]/.test(String(r[5] ?? "").trim()),
+      }))
+      .filter((n) => n.ok && n.situation && n.what);
+  } catch (e) {
+    if (/Unable to parse range|not found/i.test(e.message)) return [];
+    throw e;
+  }
+}

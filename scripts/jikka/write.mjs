@@ -7,7 +7,7 @@ const SCHEMA = {
   schema: {
     type: "object",
     additionalProperties: false,
-    required: ["intro", "summary", "sections", "closing"],
+    required: ["intro", "summary", "sections", "faq", "closing"],
     properties: {
       intro: { type: "string", description: "導入文のHTML（<p>のみ、2〜3段落）。見出しは付けない。読者の悩みに共感する一文＋「！」で始め、読み進める理由を示す" },
       summary: { type: "array", items: { type: "string" }, description: "「この記事のポイント」。結論を3〜4個。各20〜40文字。「！」で終えてよい" },
@@ -21,6 +21,16 @@ const SCHEMA = {
             h2: { type: "string", description: "構成案のH2をそのまま使う" },
             html: { type: "string", description: "セクション本文のHTML。<h2>は含めない。使用可: <p><table><thead><tbody><tr><th><td><ul><ol><li><strong><mark><a>、および囲み枠 <div data-box=\"point|caution|check\"><p>…</p></div>" },
           },
+        },
+      },
+      faq: {
+        type: "array",
+        description: "「よくある質問」3〜5問。読者が検索しそうな疑問文（Q）と、本文の内容に基づく2〜3文の回答（A）。本文に書いていない事実は足さない。Aは<p>なしの文字だけ",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["q", "a"],
+          properties: { q: { type: "string", description: "疑問文。例：実家じまいは何年かかりますか？" }, a: { type: "string" } },
         },
       },
       closing: { type: "string", description: "締めのHTML（<p>1〜2段落）。次に取るべき行動を1つ示し、個別の判断は専門家に確認するよう自然に1文入れる" },
@@ -42,6 +52,7 @@ const RULES = `文体・構成:
   <div data-box="point"><p>ここが大事！という要点を1〜2文</p></div>
   <div data-box="caution"><p>見落とすと損をする・やり直しになる点を1〜2文</p></div>
   <div data-box="check"><ul><li>確認項目</li><li>確認項目</li></ul></div>
+  <div data-box="field"><p>実際の相談では〜</p></div>（運営者の相談現場メモが渡されたときだけ使う）
 - 表は<thead><tr><th>…</th></tr></thead><tbody>…</tbody>の形で、見出し行をつける
 
 禁止:
@@ -63,7 +74,7 @@ const RULES = `文体・構成:
 - 渡されていないURLは絶対に作らない
 - CTA（申し込み・相談への誘導）は本文に書かない（別の工程で挿入する）`;
 
-export async function writeArticle({ keyword, outline, sources, internal = [], apiKey }) {
+export async function writeArticle({ keyword, outline, sources, internal = [], fieldNotes = [], apiKey }) {
   const client = new OpenAI({ apiKey });
   const completion = await client.chat.completions.create({
     model: MODELS.article,
@@ -95,7 +106,10 @@ ${outline.sections
 参照URLの一覧（この中のものだけ使う）:
 ${sources.map((s) => `- [${s.kind}] ${s.publisher}「${s.title}」 ${s.url}`).join("\n")}
 
-${internal.length ? `既存記事（内部リンク候補）。下の一覧から、今回の記事の内容に本当に関連するものだけを選び、本文中の自然な文脈で3〜6本紹介する。一覧に無いURLは使わない。無理に入れない:
+${fieldNotes.length ? `運営者の「相談現場メモ」（実際に相談を受けた経験。事実として扱ってよい。個人が特定されない形で、今回の記事に関連するものだけを、本文の中の適切な場所に <div data-box="field"><p>実際の相談では、〜というケースがありました。〜</p></div> の形で1〜2か所入れる。メモに書かれていない内容・数字は足さない。関連するものが無ければ入れない）:
+${fieldNotes.map((n, i) => `[${i + 1}] テーマ:${n.theme || "全般"} / 状況:${n.situation} / 起きたこと:${n.what} / 結果・学び:${n.lesson}${n.numbers ? " / 金額・期間:" + n.numbers : ""}`).join("\n")}
+
+` : ""}${internal.length ? `既存記事（内部リンク候補）。下の一覧から、今回の記事の内容に本当に関連するものだけを選び、本文中の自然な文脈で3〜6本紹介する。一覧に無いURLは使わない。無理に入れない:
 ${internal.map((p) => `- ${p.title} ${p.url}`).join("\n")}` : ""}
 
 全体で3000文字以上。各セクションは400字以上の内容にしてください。`,
