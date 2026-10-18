@@ -40,7 +40,17 @@ const SCHEMA = {
   },
 };
 
-export async function buildOutline({ keyword, group, research, sources, apiKey }) {
+const EMOTION_OUTLINE = `
+【気持ちの記事（最優先ルール。上の費用・手順・比較などの指示と食い違うときはこちらを優先する）】
+- この検索をする人は、実家がなくなる寂しさ・喪失感・罪悪感を抱えている。実務の手順書ではなく、気持ちに寄り添い、心の整理のために具体的に何をすればよいかを示す記事にする
+- タイトルは、検索キーワードをそのまま（語順も変えずに）入れ、気持ちに寄り添う自然な日本語にする。「費用」「手順」「比較」などは入れない。32文字前後
+- H2は3〜4個。「〜とは」「費用」「手順」のような実務の見出しにせず、読者の気持ちや場面を表す平易な言葉にする（例：「実家がなくなるとなぜ寂しいのか」「寂しさが強くなりやすい場面」「気持ちを整理するためにできること」「手放したあとの実家との関わり方」）
+- 表（table）は使わない。format は text または list にする。steps は気持ちの整理の行動を並べるときだけ使ってよい
+- 売却・解体・手続きなどの実務は、最後に1つの短いセクションで触れる程度にとどめ、詳細は既存記事への案内に任せる
+- 法律・税金の細かい説明はしない。referenceUrls は、提供された参照URLがあり本当に必要な場合だけ。無ければ空配列
+- 体験談を作らない。「私は〜」「相談者のAさんは〜」のような創作の体験や具体的なエピソードは書かない`;
+
+export async function buildOutline({ keyword, group, research, sources, apiKey, style = "practical" }) {
   const client = new OpenAI({ apiKey });
   const completion = await client.chat.completions.create({
     model: MODELS.article,
@@ -53,7 +63,7 @@ export async function buildOutline({ keyword, group, research, sources, apiKey }
 - 見出し文言は共起語（とは・費用・注意点・手順・比較・期限・メリット・デメリット）を自然に使った、短く分かりやすい形にする
 - 比喩・造語・煽りは使わない。「出口」「入口」「地図」「ゴール」「落とし穴」「壁」「鍵」などの言い換えは禁止。見出しは、何が書いてあるかが一目で分かる平易な言葉にする（例：「売却・解体・賃貸の比較」）
 - 形式的な見出し（「まとめ」「はじめに」）は作らない
-- 法律・税金・制度に関するセクションには、必ず提供された公的機関のURLを割り当てる。提供されたURL以外は絶対に使わない`,
+- 法律・税金・制度に関するセクションには、必ず提供された公的機関のURLを割り当てる。提供されたURL以外は絶対に使わない${style === "emotion" ? "\n" + EMOTION_OUTLINE : ""}`,
       },
       {
         role: "user",

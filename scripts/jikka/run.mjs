@@ -49,7 +49,8 @@ async function main() {
 
   const row = await pickNextRow({ slug: opt("slug"), rowNumber: opt("row") });
   if (!row) throw new Error("対象の行が見つかりません（「未着手」の記事が無い、または指定のスラッグ/行が無い）");
-  log(`対象: 行${row.rowNumber} / ${row.keyword} / ${row.slug} / 分類=${row.group}`);
+  const style = row.style || "practical";
+  log(`対象: 行${row.rowNumber} / ${row.keyword} / ${row.slug} / 分類=${row.group}${style === "emotion" ? " / 気持ちの記事" : ""}`);
 
   const outDir = path.join("out", row.slug);
   await fs.mkdir(outDir, { recursive: true });
@@ -90,7 +91,7 @@ async function main() {
       let research;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          ({ data: research } = await researchKeyword({ keyword: row.keyword, group: row.group, apiKey }));
+          ({ data: research } = await researchKeyword({ keyword: row.keyword, group: row.group, apiKey, style }));
           break;
         } catch (e) {
           log(`  リサーチに失敗（${attempt}/3回目）: ${errText(e)}`);
@@ -103,7 +104,7 @@ async function main() {
       await save("research.json", { research, sources });
 
       log("2/6 見出し構成を作成");
-      outline = await buildOutline({ keyword: row.keyword, group: row.group, research, sources, apiKey });
+      outline = await buildOutline({ keyword: row.keyword, group: row.group, research, sources, apiKey, style });
       await save("outline.json", outline);
       log(`  タイトル: ${outline.title}`);
       log(`  H2: ${outline.sections.map((s) => s.h2).join(" / ")}`);
@@ -115,7 +116,7 @@ async function main() {
       log("3/6 本文を作成");
       const fieldNotes = await readFieldNotes().catch(() => []);
       log(`  運営者の現場メモ: ${fieldNotes.length}件（公開OKのもの）`);
-      body = await writeArticle({ keyword: row.keyword, outline, sources, internal, fieldNotes, apiKey });
+      body = await writeArticle({ keyword: row.keyword, outline, sources, internal, fieldNotes, apiKey, style });
       log("  AIっぽい表現・造語・比喩を校正");
       body = await polishBody({ body, apiKey, log });
       const left = findBanned(body);
@@ -131,7 +132,7 @@ async function main() {
     }
 
     log("5/6 記事を組み立て・リンクを検証");
-    const html0 = assemble({ body, ctas });
+    const html0 = assemble({ body, ctas, style });
     const allowed = [...sources.map((s) => s.url), ...internal.map((p) => p.url), ...(ctas.affiliate ? [ctas.affiliate.url] : [])];
     const { html, removed } = sanitizeLinks(html0, allowed);
     if (removed.length) log(`  未確認のURLのリンクを外しました: ${removed.join(", ")}`);

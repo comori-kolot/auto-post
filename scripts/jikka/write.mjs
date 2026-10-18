@@ -74,14 +74,27 @@ const RULES = `文体・構成:
 - 渡されていないURLは絶対に作らない
 - CTA（申し込み・相談への誘導）は本文に書かない（別の工程で挿入する）`;
 
-export async function writeArticle({ keyword, outline, sources, internal = [], fieldNotes = [], apiKey }) {
+const EMOTION_RULES = `
+
+【気持ちの記事（最優先ルール。上の装飾・表・「！」の指示と食い違うときはこちらを優先する）】
+- 読者は、実家がなくなることに寂しさ・喪失感・罪悪感を抱いている。やさしく落ち着いた、押しつけない文体で書く。励ましの決まり文句や、気持ちを決めつける書き方（「〜と感じるはずです」）は避け、「〜と感じる人は少なくありません」のように寄り添う
+- 導入文は、読者の気持ちを言葉にして受け止める共感から始める。「！」は使わない（記事全体でも使わない）。<mark>は記事全体で1〜2か所まで、<strong>は1段落に1か所まで
+- 表（<table>）は使わない。箇条書き・番号リストは、気持ちを整理する具体的な行動（写真を残す、最後に家で過ごす時間をつくる、など）を示すときだけ使う
+- 囲み枠は data-box="point" と "check" だけを使う（"caution" は使わない）。記事全体で2〜3個まで
+- 体験談を創作しない。「私は〜」「Aさんは〜」のような具体的な人物・出来事・会話は書かない。渡された「相談現場メモ」の中に今回の記事に合うものが無ければ、現場の話は一切入れない。一般的に起こりやすい気持ちや場面は、「〜という人は多い」のように断定を避けて書く
+- 数字（割合・人数など）は参照URLで確認できるものだけ。作らない
+- 実務（売却・解体・手続き）は、最後のセクションで短く触れ、関連する既存記事へ案内する。ここで細かい費用・税金の説明はしない
+- FAQは、気持ちに関する疑問（例：寂しいのは普通ですか？ 罪悪感はどう扱えばよいですか？）を中心にする
+- 全体で2500文字以上。各セクションは400字以上`;
+
+export async function writeArticle({ keyword, outline, sources, internal = [], fieldNotes = [], apiKey, style = "practical" }) {
   const client = new OpenAI({ apiKey });
   const completion = await client.chat.completions.create({
     model: MODELS.article,
     messages: [
       {
         role: "system",
-        content: `あなたは${SITE.name}のライターです。読者は「${SITE.reader}」。構成案に沿って記事本文を書きます。\n\n${RULES}`,
+        content: `あなたは${SITE.name}のライターです。読者は「${SITE.reader}」。構成案に沿って記事本文を書きます。\n\n${RULES}${style === "emotion" ? EMOTION_RULES : ""}`,
       },
       {
         role: "user",
@@ -112,7 +125,7 @@ ${fieldNotes.map((n, i) => `[${i + 1}] テーマ:${n.theme || "全般"} / 状況
 ` : ""}${internal.length ? `既存記事（内部リンク候補）。下の一覧から、今回の記事の内容に本当に関連するものだけを選び、本文中の自然な文脈で3〜6本紹介する。一覧に無いURLは使わない。無理に入れない:
 ${internal.map((p) => `- ${p.title} ${p.url}`).join("\n")}` : ""}
 
-全体で3000文字以上。各セクションは400字以上の内容にしてください。`,
+${style === "emotion" ? "全体で2500文字以上。各セクションは400字以上の内容にしてください。" : "全体で3000文字以上。各セクションは400字以上の内容にしてください。"}`,
       },
     ],
     response_format: { type: "json_schema", json_schema: SCHEMA },

@@ -46,6 +46,10 @@ export async function readKeywordRows() {
         status: String(r[10] ?? "").trim(),
         memo,
         group: m ? m[1] : "",
+        // 実行メモに「感情」とあれば気持ちの記事（実務の手順ではなく、共感と心の整理が主題）
+        style: /感情/.test(memo) ? "emotion" : "practical",
+        // 実行メモに「★先行」とあれば、順番に関係なく先に書く
+        priority: /★先行/.test(memo),
       };
     })
     .filter((r) => r.slug && r.keyword);
@@ -55,7 +59,7 @@ export async function pickNextRow({ slug, rowNumber } = {}) {
   const rows = await readKeywordRows();
   if (slug) return rows.find((r) => r.slug === slug);
   if (rowNumber) return rows.find((r) => r.rowNumber === Number(rowNumber));
-  return rows.find((r) => r.status === "未着手");
+  return rows.find((r) => r.status === "未着手" && r.priority) || rows.find((r) => r.status === "未着手");
 }
 
 // ステータス(L列)と完了日(M列)を更新する

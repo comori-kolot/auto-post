@@ -253,27 +253,14 @@ export function parseTemplate(killer) {
   return { headline, bullets, button: m ? m[1] : label, buttonNote: m ? m[2] : "" };
 }
 
-// $記事テーマ$ に入れるテーマ名。AIは使わず、キーワードから「費用・手順・方法」などの言葉を外すだけ。
-// 例：実家じまい費用→実家じまい／実家の片付け業者→実家の片付け／山林相続→山林／空き家 相続→空き家
-const THEME_SUFFIXES = [
-  "とは", "費用", "相場", "手順", "方法", "やり方", "流れ", "期限", "注意点", "補助金", "税金", "必要書類", "書類",
-  "使えない", "できない", "売れない", "自分で", "ブログ", "業者", "違い", "チェックリスト", "失敗", "お金がない", "うんざり", "売れるもの",
-  "やってはいけない", "の", "を", "は", "が", "に", "で",
-];
-const THEME_PREFIXES = ["やってはいけない", "田舎", "田舎の"];
-
-export function themeFromKeyword(keyword) {
-  let t = String(keyword).normalize("NFKC").replace(/\s+/g, "");
-  for (let i = 0; i < 6; i++) {
-    const before = t;
-    for (const s of THEME_SUFFIXES) if (t.endsWith(s) && t.length > s.length + 1) t = t.slice(0, -s.length);
-    for (const p of THEME_PREFIXES) if (t.startsWith(p) && t.length > p.length + 1) t = t.slice(p.length);
-    if (t === before) break;
-  }
-  // 「山林相続」「空き家相続」のように末尾が相続なら、テンプレの「相続手続き」と重なるので外す
-  if (t.endsWith("相続") && t.length > 3) t = t.slice(0, -2);
-  if (t.endsWith("の") && t.length > 2) t = t.slice(0, -1);
-  return t || keyword;
+// CTAの見出しは、記事のキーワードを入れず、全記事で同じ文言にする（キーワードを機械的に埋め込むと不自然な日本語になるため）。
+// シートの「CTA案」1行目の【$記事テーマ$…】の部分だけをこの文言に置き換え、後ろの「プロにまとめて相談しませんか？」などはそのまま使う。
+export const CTA_LEAD = "実家じまいなど、相続手続きにお困りの方へ";
+export function fixedHeadline(headline) {
+  return String(headline)
+    .replace(/【[^】]*\$記事テーマ\$[^】]*】/, `【${CTA_LEAD}】`)
+    .split("$記事テーマ$")
+    .join("実家じまい");
 }
 
 // 保存済みのCTA（運営者の型を使ったもの）を、AIなしで、いまの型・テーマ名の作り方で組み直す
@@ -283,8 +270,8 @@ export function rebuildTemplateCtas(ctas, keyword, affiliates = []) {
   const aff = saved && (affiliates.find((a) => a.name === saved.name) || saved);
   const tpl = aff && parseTemplate(aff.killer);
   if (!tpl) return null;
-  const theme = tpl.headline.includes("$記事テーマ$") ? themeFromKeyword(keyword) : "";
-  const one = () => ({ headline: tpl.headline.split("$記事テーマ$").join(theme), sub: "", bullets: [...tpl.bullets], button: tpl.button, buttonNote: tpl.buttonNote, micro: "", url: aff.url, sponsored: true });
+  const theme = "";
+  const one = () => ({ headline: fixedHeadline(tpl.headline), sub: "", bullets: [...tpl.bullets], button: tpl.button, buttonNote: tpl.buttonNote, micro: "", url: aff.url, sponsored: true });
   return { ...ctas, slots: { intro: one(), mid: one(), end: one() }, template: true, theme };
 }
 
@@ -331,9 +318,9 @@ ${Object.entries(SLOT_ROLE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}`,
   // 運営者のCTA案があれば、AIで言い換えず、そのまま使う（3か所とも同じ）
   const tpl = parseTemplate(aff.killer);
   if (tpl) {
-    const theme = tpl.headline.includes("$記事テーマ$") ? themeFromKeyword(keyword) : "";
+    const theme = "";
     const one = () => ({
-      headline: tpl.headline.split("$記事テーマ$").join(theme),
+      headline: fixedHeadline(tpl.headline),
       sub: "",
       bullets: [...tpl.bullets],
       button: tpl.button,

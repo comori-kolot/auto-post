@@ -92,7 +92,7 @@ function summaryBox(items) {
     .join("")}</ul></div>`;
 }
 
-export function assemble({ body, ctas }) {
+export function assemble({ body, ctas, style = "practical" }) {
   const parts = [];
   parts.push(confirmDateHtml());
   parts.push(body.intro);

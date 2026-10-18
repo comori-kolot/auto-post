@@ -46,7 +46,13 @@ const SCHEMA = {
   },
 };
 
-export async function researchKeyword({ keyword, group, apiKey }) {
+const EMOTION_BRIEF = `このキーワードは、実家を手放す・実家がなくなることへの「気持ち」を検索する人向けです。実務の手順ではなく、読者の心に答えるページを作るための調査をしてください。
+- 検索上位は、発言小町・Yahoo!知恵袋・note・個人ブログなどの体験談が多い想定です。上位ページの見出しだけでなく、読者がどんな気持ち（喪失感・罪悪感・寂しさ・兄弟間のずれなど）や状況を書いているかも searchIntent と gaps に反映する
+- 上位ページで説明が薄い点は「気持ちの整理のために、具体的に何をすればよいか」「いつ・どんな場面で寂しさが強くなるか」など、読者の行動につながる切り口を挙げる
+- authoritativeSources は、本文で引用する必要がある場合だけ（最大3件）。公的機関の確かなページに限り、無理に探さない。無ければ空配列でよい
+- 体験談の文章をそのまま写さない`;
+
+export async function researchKeyword({ keyword, group, apiKey, style = "practical" }) {
   const client = new OpenAI({ apiKey });
   const resp = await client.responses.create({
     model: MODELS.research,
@@ -64,7 +70,7 @@ export async function researchKeyword({ keyword, group, apiKey }) {
 2. 見出し・タイトルに頻出する共起語（とは／注意点／費用／比較／手順／期限など）
 3. 記事の根拠として引用できる公的・専門家のページ（最大8件）。優先順位は、官公庁・自治体・公的機関（法務省、国税庁、国土交通省、林野庁、農林水産省、裁判所、法務局、日本司法書士会連合会など）→ 法律事務所・行政書士事務所・税理士事務所の解説ページ（補足）。民間の不動産会社や一括査定サイトは含めない。
 4. 上位ページで説明が薄い点（独自性を出せる切り口）
-法律・税金・制度に関するキーワードは、必ず官公庁の一次情報を含めてください。`,
+${style === "emotion" ? "\n" + EMOTION_BRIEF : "法律・税金・制度に関するキーワードは、必ず官公庁の一次情報を含めてください。"}`,
       },
     ],
     text: { format: { type: "json_schema", name: "keyword_research", strict: true, schema: SCHEMA } },
