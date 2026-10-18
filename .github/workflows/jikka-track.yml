@@ -1,0 +1,31 @@
+name: Jikka Track
+
+# 効果検証の自動集計。毎週月曜に Search Console の数字を集計して、スプレッドシートの「効果検証」系タブに書き込む。
+# 読み取りと書き込みだけで、AIは使わない（費用なし）。
+on:
+  schedule:
+    - cron: "30 0 * * 1" # 毎週月曜 09:30 JST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Track
+        env:
+          GOOGLE_SA_KEY_JSON: ${{ secrets.GOOGLE_SA_KEY_JSON }}
+          GOOGLE_SA_KEY_B64: ${{ secrets.GOOGLE_SA_KEY_B64 }}
+        run: node scripts/jikka/track.mjs

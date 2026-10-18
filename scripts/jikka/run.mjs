@@ -16,6 +16,7 @@ import { uploadImage, createPost } from "./publish.mjs";
 import { categoryIdsFor } from "./config.mjs";
 import { internalCandidates } from "./internal.mjs";
 import { polishBody, findBanned } from "./polish.mjs";
+import { refreshRelated } from "./related.mjs";
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -168,6 +169,10 @@ async function main() {
     log(`WordPressに${status === "publish" ? "公開" : "下書き保存"}しました: ${post.link}`);
     if (!opt("update")) await markRow(row.rowNumber, status === "publish" ? "公開済" : "下書き確認待ち", todayJst());
     log("シートのステータスを更新しました");
+    if (status === "publish") {
+      // 新しい記事への内部リンクを、関連する既存記事に自動で追加する（失敗しても記事の公開には影響しない）
+      await refreshRelated({ apply: true, log: (m) => log(`  内部リンク: ${m}`) }).catch((e) => log(`  内部リンクの更新に失敗（記事は公開済み）: ${e.message}`));
+    }
   } catch (e) {
     console.error(`[jikka] 失敗した工程: ${stage}
 ${e.stack || e.message}`);
