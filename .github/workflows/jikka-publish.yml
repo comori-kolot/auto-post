@@ -2,9 +2,11 @@ name: Jikka Publish
 
 # 実家じまいメディアの記事を、KW戦略シートの順に1本ずつ作成して投稿する。
 # 投稿状態は GitHub の Variables「POST_STATUS」で切り替える（draft=下書き / publish=公開。未設定なら publish）。
+# 2026-10-19 自動投稿を停止（毎日の実行をやめた）。再開するときは、下の schedule のコメントを外す。
+# 手動で実行したいときは、GitHub の Actions から「Run workflow」を使う。
 on:
-  schedule:
-    - cron: "0 0 * * *" # 毎日 09:00 JST
+  # schedule:
+  #   - cron: "0 0 * * *" # 毎日 09:00 JST
   workflow_dispatch:
     inputs:
       count:
