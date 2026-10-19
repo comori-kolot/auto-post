@@ -9,6 +9,8 @@ const MARK = 'data-gb-related="1"';
 const BLOCK_RE = /<div data-gb-related="1"[\s\S]*?<\/ul>\s*<\/div>/;
 const MAX_PER_POST = 4;
 const MIN_INBOUND = 5; // 被リンクがこの数に届かない記事を優先して紹介する
+// 内部リンクを集約したい記事（実家じまい系のすべての記事の「あわせて読みたい」で、最初に紹介する）
+const PINNED = ["jikka-jimai-shippai"];
 
 const TOPIC = ["相続", "山林", "農地", "空き家", "空家", "実家", "登記", "売却", "解体", "固定資産税", "放棄", "国庫", "遺品", "片付け", "墓", "土地", "測量", "境界", "共有", "名義", "遺産", "遺言"];
 const SPECIFIC = ["費用", "相場", "手順", "補助金", "業者", "失敗", "トラブル", "兄弟", "寂しい", "処分", "後悔", "税金", "期限", "お金がない", "うんざり", "仏壇", "買取", "無料", "0円", "譲渡", "放置", "管理", "測量", "境界", "売れない"];
@@ -86,6 +88,16 @@ export function plan(posts) {
   const picks = new Map(pool.map((p) => [p.id, []]));
   const ok = (s, t) => s.id !== t.id && !linkedInBody(s, t) && !picks.get(s.id).some((x) => x.id === t.id) && picks.get(s.id).length < MAX_PER_POST && score(s, t) >= 4;
 
+  // 0) 集約したい記事は、実家じまい系のすべての記事から、先頭で紹介する
+  for (const slug of PINNED) {
+    const t = pool.find((p) => p.slug === slug);
+    if (!t) continue;
+    for (const src of pool) {
+      if (src.id === t.id || clusterOf(src.slug) !== "jikka" || linkedInBody(src, t) || picks.get(src.id).length >= MAX_PER_POST) continue;
+      picks.get(src.id).push(t);
+      inbound.set(t.id, inbound.get(t.id) + 1);
+    }
+  }
   // 1) 被リンクが少ない記事に、関連の強い記事から1〜3本ずつ張る
   const needy = [...pool].filter((p) => inbound.get(p.id) < MIN_INBOUND).sort((a, b) => inbound.get(a.id) - inbound.get(b.id));
   for (const t of needy) {
